@@ -1,36 +1,48 @@
 import { Request, Response } from 'express';
-import { occupationService, CreateOccupationData } from '../services/occupationService';
+import { occupationService, CreateOccupationData, CompanionData } from '../services/occupationService';
 
 export const occupationController = {
   async createOccupation(req: Request, res: Response): Promise<void> {
     try {
       const {
         roomId,
-        guestName,
-        guestEmail,
-        guestPhone,
+        responsibleName,
+        responsibleCPF,
+        responsiblePhone,
+        responsibleBirthDate,
+        carPlate,
         checkInDate,
         expectedCheckOut,
         roomRate,
         initialConsumption,
+        companions,
       } = req.body;
 
-      if (!roomId || !guestName || !checkInDate || !expectedCheckOut || !roomRate) {
+      // Validar campos obrigatórios do responsável
+      if (!roomId || !responsibleName || !responsibleCPF || !responsiblePhone || 
+          !responsibleBirthDate || !checkInDate || !expectedCheckOut || !roomRate) {
         res.status(400).json({
-          error: 'roomId, guestName, checkInDate, expectedCheckOut e roomRate são obrigatórios',
+          error: 'roomId, responsibleName, responsibleCPF, responsiblePhone, responsibleBirthDate, checkInDate, expectedCheckOut e roomRate são obrigatórios',
         });
         return;
       }
 
       const occupationData: CreateOccupationData = {
         roomId,
-        guestName,
-        guestEmail,
-        guestPhone,
+        responsibleName,
+        responsibleCPF,
+        responsiblePhone,
+        responsibleBirthDate: new Date(responsibleBirthDate),
+        carPlate,
         checkInDate: new Date(checkInDate),
         expectedCheckOut: new Date(expectedCheckOut),
         roomRate,
         initialConsumption,
+        companions: companions?.map((companion: any) => ({
+          name: companion.name,
+          cpf: companion.cpf,
+          birthDate: new Date(companion.birthDate),
+        })),
       };
 
       const occupation = await occupationService.createOccupation(occupationData);

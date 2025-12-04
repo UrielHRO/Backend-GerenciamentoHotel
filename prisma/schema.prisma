@@ -61,9 +61,12 @@ enum RoomStatus {
 model Occupation {
   id                Int           @id @default(autoincrement())
   roomId            Int
-  guestName         String
-  guestEmail        String?
-  guestPhone        String?
+  // Dados do responsável
+  responsibleName   String
+  responsibleCPF    String
+  responsiblePhone  String
+  responsibleBirthDate DateTime
+  carPlate          String?
   checkInDate       DateTime
   checkOutDate      DateTime?
   expectedCheckOut  DateTime
@@ -78,8 +81,23 @@ model Occupation {
 
   room              Room          @relation(fields: [roomId], references: [id])
   consumptions      Consumption[]
+  companions        Companion[]
 
   @@map("occupations")
+}
+
+// Companion model (acompanhantes)
+model Companion {
+  id           Int       @id @default(autoincrement())
+  occupationId Int
+  name         String
+  cpf          String
+  birthDate    DateTime
+  createdAt    DateTime  @default(now())
+
+  occupation   Occupation @relation(fields: [occupationId], references: [id], onDelete: Cascade)
+
+  @@map("companions")
 }
 
 // Enum for occupation statuses
