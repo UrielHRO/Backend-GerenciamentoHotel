@@ -1,0 +1,110 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// Admin model for authentication
+model Admin {
+  id        Int       @id @default(autoincrement())
+  email     String    @unique
+  password  String
+  name      String
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+
+  @@map("admins")
+}
+
+// Room model
+model Room {
+  id            Int         @id @default(autoincrement())
+  number        String      @unique
+  floor         Int
+  capacity      Int
+  dailyRate     Float
+  status        RoomStatus  @default(AVAILABLE)
+  createdAt     DateTime    @default(now())
+  updatedAt     DateTime    @updatedAt
+  occupations   Occupation[]
+
+  @@map("rooms")
+}
+
+// Enum for room statuses
+enum RoomStatus {
+  AVAILABLE    // Disponível
+  RESERVED     // Reservado
+  OCCUPIED     // Ocupado
+  CLEANING     // Limpeza
+  MAINTENANCE  // Manutenção
+  EXPIRED      // Expirado (reserva expirada)
+}
+
+// Occupation model
+model Occupation {
+  id                Int           @id @default(autoincrement())
+  roomId            Int
+  guestName         String
+  guestEmail        String?
+  guestPhone        String?
+  checkInDate       DateTime
+  checkOutDate      DateTime?
+  expectedCheckOut  DateTime
+  roomRate          Float
+  initialConsumption Float?       @default(0)
+  totalConsumption  Float?        @default(0)
+  serviceCharge     Float?        @default(0)
+  finalPrice        Float?
+  status            OccupationStatus @default(ACTIVE)
+  createdAt         DateTime      @default(now())
+  updatedAt         DateTime      @updatedAt
+
+  room              Room          @relation(fields: [roomId], references: [id])
+  consumptions      Consumption[]
+
+  @@map("occupations")
+}
+
+// Enum for occupation statuses
+enum OccupationStatus {
+  ACTIVE       // Ativa
+  COMPLETED    // Finalizada
+  CANCELLED    // Cancelada
+}
+
+// Product model
+model Product {
+  id            Int         @id @default(autoincrement())
+  name          String
+  description   String?
+  price         Float
+  category      String?
+  createdAt     DateTime    @default(now())
+  updatedAt     DateTime    @updatedAt
+  consumptions  Consumption[]
+
+  @@map("products")
+}
+
+// Consumption model
+model Consumption {
+  id           Int       @id @default(autoincrement())
+  occupationId Int
+  productId    Int
+  quantity     Int       @default(1)
+  unitPrice    Float
+  totalPrice   Float
+  createdAt    DateTime  @default(now())
+
+  occupation   Occupation @relation(fields: [occupationId], references: [id], onDelete: Cascade)
+  product      Product    @relation(fields: [productId], references: [id])
+
+  @@map("consumptions")
+}
