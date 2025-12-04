@@ -28,13 +28,23 @@ model Room {
   number        String      @unique
   floor         Int
   capacity      Int
+  roomType      RoomType    @default(STANDARD)
   dailyRate     Float
+  nightRate     Float
   status        RoomStatus  @default(AVAILABLE)
   createdAt     DateTime    @default(now())
   updatedAt     DateTime    @updatedAt
   occupations   Occupation[]
 
   @@map("rooms")
+}
+
+// Enum for room types
+enum RoomType {
+  STANDARD  // Quarto Padrão
+  DELUXE    // Quarto Deluxe
+  SUITE     // Suíte
+  PREMIUM   // Premium
 }
 
 // Enum for room statuses

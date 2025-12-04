@@ -1,13 +1,16 @@
 import prisma from '../database/prismaClient';
 
 export type RoomStatus = 'AVAILABLE' | 'RESERVED' | 'OCCUPIED' | 'CLEANING' | 'MAINTENANCE';
+export type RoomType = 'STANDARD' | 'DELUXE' | 'SUITE' | 'PREMIUM';
 
 export const roomService = {
   async createRoom(
     number: string,
     floor: number,
     capacity: number,
-    dailyRate: number
+    roomType: RoomType,
+    dailyRate: number,
+    nightRate: number
   ) {
     const existingRoom = await prisma.room.findUnique({
       where: { number },
@@ -22,7 +25,9 @@ export const roomService = {
         number,
         floor,
         capacity,
+        roomType,
         dailyRate,
+        nightRate,
         status: 'AVAILABLE',
       },
     });
@@ -64,7 +69,9 @@ export const roomService = {
       number?: string;
       floor?: number;
       capacity?: number;
+      roomType?: RoomType;
       dailyRate?: number;
+      nightRate?: number;
       status?: RoomStatus;
     }
   ) {

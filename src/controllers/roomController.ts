@@ -4,14 +4,14 @@ import { roomService } from '../services/roomService';
 export const roomController = {
   async createRoom(req: Request, res: Response): Promise<void> {
     try {
-      const { number, floor, capacity, dailyRate } = req.body;
+      const { number, floor, capacity, roomType, dailyRate, nightRate } = req.body;
 
-      if (!number || floor === undefined || !capacity || !dailyRate) {
+      if (!number || floor === undefined || !capacity || !roomType || !dailyRate || !nightRate) {
         res.status(400).json({ error: 'Todos os campos são obrigatórios' });
         return;
       }
 
-      const room = await roomService.createRoom(number, floor, capacity, dailyRate);
+      const room = await roomService.createRoom(number, floor, capacity, roomType, dailyRate, nightRate);
       res.status(201).json(room);
     } catch (error: any) {
       res.status(400).json({ error: error.message });
@@ -49,13 +49,15 @@ export const roomController = {
   async updateRoom(req: Request, res: Response): Promise<void> {
     try {
       const { id } = req.params;
-      const { number, floor, capacity, dailyRate, status } = req.body;
+      const { number, floor, capacity, roomType, dailyRate, nightRate, status } = req.body;
 
       const room = await roomService.updateRoom(parseInt(id), {
         number,
         floor,
         capacity,
+        roomType,
         dailyRate,
+        nightRate,
         status,
       });
 
