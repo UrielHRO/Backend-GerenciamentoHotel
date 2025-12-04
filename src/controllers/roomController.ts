@@ -49,13 +49,13 @@ export const roomController = {
   async updateRoom(req: Request, res: Response): Promise<void> {
     try {
       const { id } = req.params;
-      const { number, floor, capacity, RoomType, dailyRate, nightRate, status } = req.body;
+      const { number, floor, capacity, roomType, dailyRate, nightRate, status } = req.body;
 
       const room = await roomService.updateRoom(parseInt(id), {
         number,
         floor,
         capacity,
-        RoomType,
+        roomType,
         dailyRate,
         nightRate,
         status,
