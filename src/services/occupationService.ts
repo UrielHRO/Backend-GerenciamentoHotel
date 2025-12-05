@@ -1,18 +1,56 @@
 import prisma from '../database/prismaClient';
 
+export interface CompanionData {
+  name: string;
+  cpf: string;
+  birthDate: Date;
+}
+
 export interface CreateOccupationData {
   roomId: number;
-  guestName: string;
-  guestEmail?: string;
-  guestPhone?: string;
+  // Dados do responsável
+  responsibleName: string;
+  responsibleCPF: string;
+  responsiblePhone: string;
+  responsibleBirthDate: Date;
+  carPlate?: string;
   checkInDate: Date;
   expectedCheckOut: Date;
   roomRate: number;
   initialConsumption?: number;
+  companions?: CompanionData[];
+}
+
+// Função para validar maioridade (18 anos)
+function validateAdultAge(birthDate: Date): boolean {
+  const today = new Date();
+  const birth = new Date(birthDate);
+  let age = today.getFullYear() - birth.getFullYear();
+  const monthDiff = today.getMonth() - birth.getMonth();
+  
+  if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birth.getDate())) {
+    age--;
+  }
+  
+  return age >= 18;
 }
 
 export const occupationService = {
   async createOccupation(data: CreateOccupationData) {
+    // Validar maioridade do responsável
+    if (!validateAdultAge(data.responsibleBirthDate)) {
+      throw new Error('O responsável pela ocupação deve ser maior de 18 anos');
+    }
+
+    // Validar maioridade dos acompanhantes
+    if (data.companions && data.companions.length > 0) {
+      for (const companion of data.companions) {
+        if (!validateAdultAge(companion.birthDate)) {
+          throw new Error(`O acompanhante ${companion.name} deve ser maior de 18 anos`);
+        }
+      }
+    }
+
     // Verificar se o quarto existe
     const room = await prisma.room.findUnique({
       where: { id: data.roomId },
@@ -45,19 +83,31 @@ export const occupationService = {
       roomStatus = 'OCCUPIED';
     }
 
-    // Criar a ocupação
+    // Criar a ocupação com acompanhantes
     const occupation = await prisma.occupation.create({
       data: {
         roomId: data.roomId,
-        guestName: data.guestName,
-        guestEmail: data.guestEmail,
-        guestPhone: data.guestPhone,
+        responsibleName: data.responsibleName,
+        responsibleCPF: data.responsibleCPF,
+        responsiblePhone: data.responsiblePhone,
+        responsibleBirthDate: new Date(data.responsibleBirthDate),
+        carPlate: data.carPlate,
         checkInDate: new Date(data.checkInDate),
         expectedCheckOut: new Date(data.expectedCheckOut),
         roomRate: data.roomRate,
         initialConsumption: data.initialConsumption || 0,
         totalConsumption: data.initialConsumption || 0,
         status: 'ACTIVE',
+        companions: {
+          create: data.companions?.map(companion => ({
+            name: companion.name,
+            cpf: companion.cpf,
+            birthDate: new Date(companion.birthDate),
+          })) || [],
+        },
+      },
+      include: {
+        companions: true,
       },
     });
 
@@ -75,6 +125,7 @@ export const occupationService = {
       where: { id },
       include: {
         room: true,
+        companions: true,
         consumptions: {
           include: {
             product: true,
@@ -92,6 +143,7 @@ export const occupationService = {
       },
       include: {
         room: true,
+        companions: true,
         consumptions: {
           include: {
             product: true,
@@ -109,6 +161,7 @@ export const occupationService = {
       },
       include: {
         room: true,
+        companions: true,
         consumptions: {
           include: {
             product: true,
@@ -183,7 +236,12 @@ export const occupationService = {
     const occupation = await prisma.occupation.findUnique({
       where: { id: occupationId },
       include: {
-        consumptions: true,
+        consumptions: {
+          include: {
+            product: true,
+          },
+        },
+        companions: true,
         room: true,
       },
     });
@@ -195,6 +253,15 @@ export const occupationService = {
     if (occupation.status !== 'ACTIVE') {
       throw new Error('Ocupação não está ativa');
     }
+
+    // Detalhar cada despesa
+    const expenseDetails = occupation.consumptions.map(consumption => ({
+      productName: consumption.product.name,
+      quantity: consumption.quantity,
+      unitPrice: consumption.unitPrice,
+      totalPrice: consumption.totalPrice,
+      date: consumption.createdAt,
+    }));
 
     // Calcular o preço final
     const subtotal = occupation.roomRate + (occupation.totalConsumption || 0);
@@ -212,6 +279,7 @@ export const occupationService = {
       },
       include: {
         room: true,
+        companions: true,
         consumptions: {
           include: {
             product: true,
@@ -230,9 +298,11 @@ export const occupationService = {
       occupation: updatedOccupation,
       summary: {
         roomRate: occupation.roomRate,
+        expenses: expenseDetails,
         totalConsumption: occupation.totalConsumption || 0,
         subtotal,
         serviceCharge,
+        serviceChargePercentage,
         finalPrice,
       },
     };
