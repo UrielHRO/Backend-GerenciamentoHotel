@@ -1,9 +1,23 @@
 import prisma from '../database/prismaClient';
+import redisClient from '../database/redisClient';
 
 export type RoomStatus = 'AVAILABLE' | 'RESERVED' | 'OCCUPIED' | 'CLEANING' | 'MAINTENANCE';
 export type RoomType = 'STANDARD' | 'DELUXE' | 'SUITE' | 'PREMIUM';
 
 export const roomService = {
+  // Função auxiliar para invalidar cache
+  async invalidateRoomCache() {
+    try {
+      const keys = await redisClient.keys('rooms:*');
+      if (keys.length > 0) {
+        await redisClient.del(...keys);
+        console.log('🗑️ Cache de quartos invalidado');
+      }
+    } catch (error) {
+      console.error('⚠️ Erro ao invalidar cache:', error);
+    }
+  },
+
   async createRoom(
     number: string,
     floor: number,
@@ -20,7 +34,7 @@ export const roomService = {
       throw new Error(`Quarto ${number} já existe`);
     }
 
-    return await prisma.room.create({
+    const room = await prisma.room.create({
       data: {
         number,
         floor,
@@ -31,10 +45,33 @@ export const roomService = {
         status: 'AVAILABLE',
       },
     });
+
+    // Invalidar cache após criação
+    await this.invalidateRoomCache();
+
+    return room;
   },
 
   async getAllRooms(filter?: { status?: RoomStatus }) {
-    return await prisma.room.findMany({
+    // Criar chave de cache baseada no filtro
+    const cacheKey = filter?.status 
+      ? `rooms:status:${filter.status}` 
+      : 'rooms:all';
+
+    try {
+      // Tentar buscar do cache
+      const cachedData = await redisClient.get(cacheKey);
+      
+      if (cachedData) {
+        console.log('🚀 Dados retornados do cache Redis');
+        return JSON.parse(cachedData);
+      }
+    } catch (error) {
+      console.error('⚠️ Erro ao buscar cache, consultando banco:', error);
+    }
+
+    // Se não houver cache, buscar do banco
+    const rooms = await prisma.room.findMany({
       where: filter?.status ? { status: filter.status } : undefined,
       include: {
         occupations: {
@@ -48,6 +85,16 @@ export const roomService = {
         },
       },
     });
+
+    try {
+      // Salvar no cache por 5 minutos (300 segundos)
+      await redisClient.setex(cacheKey, 300, JSON.stringify(rooms));
+      console.log('💾 Dados salvos no cache Redis');
+    } catch (error) {
+      console.error('⚠️ Erro ao salvar no cache:', error);
+    }
+
+    return rooms;
   },
 
   async getRoomById(id: number) {
@@ -75,10 +122,15 @@ export const roomService = {
       status?: RoomStatus;
     }
   ) {
-    return await prisma.room.update({
+    const room = await prisma.room.update({
       where: { id },
       data,
     });
+
+    // Invalidar cache após atualização
+    await this.invalidateRoomCache();
+
+    return room;
   },
 
   async deleteRoom(id: number) {
@@ -94,15 +146,25 @@ export const roomService = {
       throw new Error('Não é possível deletar um quarto com ocupação ativa');
     }
 
-    return await prisma.room.delete({
+    const room = await prisma.room.delete({
       where: { id },
     });
+
+    // Invalidar cache após deleção
+    await this.invalidateRoomCache();
+
+    return room;
   },
 
   async updateRoomStatus(id: number, status: RoomStatus) {
-    return await prisma.room.update({
+    const room = await prisma.room.update({
       where: { id },
       data: { status },
     });
+
+    // Invalidar cache após atualização de status
+    await this.invalidateRoomCache();
+
+    return room;
   },
 };
