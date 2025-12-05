@@ -1,4 +1,5 @@
 import prisma from '../database/prismaClient';
+import { roomService } from './roomService';
 
 export interface CompanionData {
   name: string;
@@ -116,6 +117,9 @@ export const occupationService = {
       where: { id: data.roomId },
       data: { status: roomStatus },
     });
+
+    // Invalidar cache do Redis
+    await roomService.invalidateRoomCache();
 
     return occupation;
   },
@@ -293,6 +297,9 @@ export const occupationService = {
       where: { id: occupation.roomId },
       data: { status: 'CLEANING' },
     });
+
+    // Invalidar cache do Redis
+    await roomService.invalidateRoomCache();
 
     return {
       occupation: updatedOccupation,
