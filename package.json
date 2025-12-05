@@ -34,9 +34,13 @@
     "cors": "^2.8.5",
     "dotenv": "^17.2.3",
     "express": "^5.2.1",
+    "ioredis": "^5.8.2",
     "jsonwebtoken": "^9.0.3",
     "prisma": "^5.7.1",
     "ts-node": "^10.9.2",
     "typescript": "^5.9.3"
+  },
+  "devDependencies": {
+    "@types/ioredis": "^5.0.0"
   }
 }
